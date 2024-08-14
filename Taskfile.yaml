@@ -1,0 +1,106 @@
+version: 3
+
+vars:
+  SHELL: bash
+  SHELL_CFG: ~/.bashrc
+
+tasks:
+
+  # PREP
+  ubuntu:prep:
+    desc: Prepare Ubuntu for installation
+    cmds:
+      - task: ubuntu:prep:install
+      - task: ubuntu:prep:config
+  
+  ubuntu:prep:install:
+    cmds:
+      - sudo apt update
+      - sudo apt install -y build-essential git wget apt-transport-https curl
+
+  ubuntu:prep:config:
+    cmds:
+      - mkdir -p ~/.dotfiles
+
+  # INSTALL
+  ubuntu:install:
+    desc: Install everything for Ubuntu
+    cmds:
+      - task: ubuntu:install:useful
+      - task: ubuntu:install:vim
+      - task: ubuntu:install:python
+      - task: ubuntu:install:signal
+      - task: install:z
+      - task: install:starship
+
+  ubuntu:install:useful:
+    cmds:
+      - sudo apt update
+      - sudo apt install -y htop eza bat ripgrep fd-find fzf
+
+  # Vim
+  ubuntu:install:vim:
+    cmds:
+      - sudo apt update
+      - sudo apt install -y neovim
+      - task: vim:config
+  
+  vim:config:
+    cmds:
+      - curl -o ~/.vimrc https://gist.githubusercontent.com/laszukdawid/059ae4c41f516e206832637e5215fe6f/raw/8dfdf85184b0afd9e1550afea99848a7482f4bd5/.vimrc
+      # Pathogen
+      - mkdir -p ~/.vim/autoload ~/.vim/bundle
+      - curl -LSso ~/.vim/autoload/pathogen.vim https://tpo.pe/pathogen.vim
+      # Configure Neovim to use .vimrc
+      - mkdir -p ~/.config/nvim
+      - |
+        cat >> ~/.config/nvim/init.vim << EOF
+        set runtimepath^=~/.vim runtimepath+=~/.vim/after
+        let &packpath = &runtimepath
+        source ~/.vimrc
+        EOF
+
+  ubuntu:install:python:
+    cmds:
+      - sudo apt update
+      - sudo apt install -y python3 python3-pip python3-venv python3-dev
+
+
+  ubuntu:install:signal:
+    desc: Install Signal app (https://signal.org/)
+    cmds:
+      # 1. Install our official public software signing key:
+      - wget -O- https://updates.signal.org/desktop/apt/keys.asc | gpg --dearmor > signal-desktop-keyring.gpg
+      - cat signal-desktop-keyring.gpg | sudo tee /usr/share/keyrings/signal-desktop-keyring.gpg > /dev/null
+      # 2. Add our repository to your list of repositories:
+      - echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/signal-desktop-keyring.gpg] https://updates.signal.org/desktop/apt xenial main' | sudo tee /etc/apt/sources.list.d/signal-xenial.list
+      # 3. Update your package database and install Signal:
+      - sudo apt update
+      - sudo apt install signal-desktop
+
+  install:z:
+    desc: Install Z script
+    precondition:
+      - curl --version
+      - test -f {{.SHELL_CFG}}  # Write to .bashrc
+    status:
+      - test -f ~/.dotfiles/z
+      - grep -q 'source ~/.dotfiles/z' {{.SHELL_CFG}}
+    cmds:
+      - curl -o ~/.dotfiles/z https://raw.githubusercontent.com/laszukdawid/z/master/z.sh
+      - chmod a+x ~/.dotfiles/z
+      - printf '\n# Z script\n' >> {{.SHELL_CFG}}
+      - printf 'source ~/.dotfiles/z\n' >> {{.SHELL_CFG}}
+  
+  install:starship:
+    desc: Install Starship prompt (https://starship.rs/)
+    precondition:
+      - curl --version
+      - test -f {{.SHELL_CFG}}  # Write to {{.SHELL_CFG}}, e.g. {{.SHELL_CFG
+    status:
+      - grep -q 'eval "$(starship init {{.SHELL}})"' {{.SHELL_CFG}}
+    cmds:
+      - curl -sS https://starship.rs/install.sh | sh -s -- -y
+      - printf '\n# Starship prompt\n' >> {{.SHELL_CFG}}
+      - printf 'eval "$(starship init {{.SHELL}})"\n' >> {{.SHELL_CFG}}
+      
