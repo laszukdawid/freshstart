@@ -20,7 +20,14 @@ tasks:
 
   ubuntu:prep:config:
     cmds:
-      - mkdir -p ~/.dotfiles
+      - task: ubuntu:prep:alias
+
+  ubuntu:prep:alias:
+    desc: Add aliases to .bashrc
+    cmds:
+      - cp alias ~/.dotfiles/.alias
+      - printf '\n# Aliases\n' >> {{.SHELL_CFG}}
+      - printf 'source ~/.dotfiles/.alias\n' >> {{.SHELL_CFG}}
 
   # INSTALL
   ubuntu:install:
@@ -103,4 +110,45 @@ tasks:
       - curl -sS https://starship.rs/install.sh | sh -s -- -y
       - printf '\n# Starship prompt\n' >> {{.SHELL_CFG}}
       - printf 'eval "$(starship init {{.SHELL}})"\n' >> {{.SHELL_CFG}}
-      
+
+  install:lang:manager:
+    desc: Install [asdf](https://asdf-vm.com/) as a lanague version manager
+    env:
+      ASDF_VERSION: v0.14.0
+    cmds:
+      - git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch $ASDF_VERSION
+      - printf '\n# Asdf\n' >> {{.SHELL_CFG}}
+      - printf '. "$HOME/.asdf/asdf.sh"\n' >> {{.SHELL_CFG}}
+      - printf '. "$HOME/.asdf/completions/asdf.bash"\n' >> {{.SHELL_CFG}}
+
+  install:lang:dart:
+    desc: Installs Dart programming language
+    cmds:
+      - sudo apt-get update && sudo apt-get install apt-transport-https
+      - wget -qO- https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo gpg  --dearmor -o /usr/share/keyrings/dart.gpg
+      - sudo apt-get update && sudo apt-get install dart
+  
+  install:lang:python:
+    desc: Installs Python programming language
+    precondition:
+      - asdf --version
+    env:
+      PYTHON_VERSION: latest
+    cmds:
+      - echo "First installing dependencies (assuming we're on Ubuntu)"
+      - sudo apt install -y libsqlite3-dev libbz2-dev liblzma-dev libffi-dev libncurses-dev
+      - asdf plugin add python
+      - asdf install python $PYTHON_VERSION
+      - asdf global python $PYTHON_VERSION  
+
+  install:lang:golang:
+    desc: Installs Go programming language
+    precondition:
+      - asdf --version
+    env:
+      GO_VERSION: latest
+    cmds:
+      - asdf plugin add golang
+      - asdf install golang $GO_VERSION
+      - asdf global golang $GO_VERSION
+  
