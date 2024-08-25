@@ -12,7 +12,7 @@ tasks:
     cmds:
       - task: ubuntu:prep:install
       - task: ubuntu:prep:config
-  
+
   ubuntu:prep:install:
     cmds:
       - sudo apt update
@@ -35,17 +35,64 @@ tasks:
     cmds:
       - task: ubuntu:install:useful
       - task: ubuntu:install:vim
-      - task: ubuntu:install:python
-      - task: install:z
-      - task: install:starship
+      - task: ubuntu:install:dev
 
   ubuntu:install:useful:
     cmds:
       - sudo apt update
       - sudo apt install -y htop eza bat ripgrep fd-find fzf
-      - sudo apt install -y tmux direnv
-      - task: ubuntu:install:code
       - task: ubuntu:install:signal
+      - task: install:z
+      - task: install:starship
+
+  ubuntu:install:dev:
+    desc: Install developer related tools
+    cmds:
+      - sudo apt install -y tmux
+      - task: ubuntu:install:docker
+      - task: ubuntu:install:direnv
+      - task: ubuntu:install:code
+      - task: ubuntu:install:python
+
+  ubuntu:install:docker:
+    desc: Install Docker enginer (https://docs.docker.com/engine/install/ubuntu/)
+    status:
+      - sudo docker --version
+      - sudo docker-compose --version
+    preconditions:
+      - curl --version
+    cmds:
+      # Add Docker's official GPG key:
+      - sudo apt-get update
+      - sudo apt-get install -y ca-certificates curl
+      - sudo install -m 0755 -d /etc/apt/keyrings
+      - sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+      - sudo chmod a+r /etc/apt/keyrings/docker.asc
+      # Add the repository to Apt sources:
+      - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      - sudo apt-get update
+      - sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      # Configure Docker to not use sudo
+      - task: install:docker:post
+
+  install:docker:post:
+    status:
+      - docker run hello-world
+    cmds:
+      - sudo groupadd docker
+      - sudo usermod -aG docker $USER
+      - newgrp docker
+
+
+  ubuntu:install:direnv:
+    desc: Install direnv (https://direnv.net/)
+    status:
+      - direnv --version
+      - grep -q 'eval "$(direnv hook {{.SHELL}})"' {{.SHELL_CFG}}
+    cmds:
+      - sudo apt install -y direnv
+      - printf '\n# Direnv\n' >> {{.SHELL_CFG}}
+      - printf 'eval "$(direnv hook {{.SHELL}})"\n' >> {{.SHELL_CFG}}
 
   ubuntu:install:code:
     status:
@@ -70,7 +117,7 @@ tasks:
       - sudo apt update
       - sudo apt install -y neovim
       - task: vim:config
-  
+
   vim:config:
     cmds:
       - curl -o ~/.vimrc https://gist.githubusercontent.com/laszukdawid/059ae4c41f516e206832637e5215fe6f/raw/8dfdf85184b0afd9e1550afea99848a7482f4bd5/.vimrc
@@ -117,7 +164,7 @@ tasks:
       - chmod a+x ~/.dotfiles/z
       - printf '\n# Z script\n' >> {{.SHELL_CFG}}
       - printf 'source ~/.dotfiles/z\n' >> {{.SHELL_CFG}}
-  
+
   install:starship:
     desc: Install Starship prompt (https://starship.rs/)
     preconditions:
@@ -146,7 +193,7 @@ tasks:
       - sudo apt-get update && sudo apt-get install apt-transport-https
       - wget -qO- https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo gpg  --dearmor -o /usr/share/keyrings/dart.gpg
       - sudo apt-get update && sudo apt-get install dart
-  
+
   install:lang:python:
     desc: Installs Python programming language
     preconditions:
@@ -158,7 +205,7 @@ tasks:
       - sudo apt install -y libsqlite3-dev libbz2-dev liblzma-dev libffi-dev libncurses-dev
       - asdf plugin add python
       - asdf install python $PYTHON_VERSION
-      - asdf global python $PYTHON_VERSION  
+      - asdf global python $PYTHON_VERSION
 
   install:lang:golang:
     desc: Installs Go programming language
@@ -170,4 +217,3 @@ tasks:
       - asdf plugin add golang
       - asdf install golang $GO_VERSION
       - asdf global golang $GO_VERSION
-  
