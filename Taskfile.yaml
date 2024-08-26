@@ -5,7 +5,6 @@ vars:
   SHELL_CFG: ~/.bashrc
 
 tasks:
-
   # PREP
   ubuntu:prep:
     desc: Prepare Ubuntu for installation
@@ -16,7 +15,7 @@ tasks:
   ubuntu:prep:install:
     cmds:
       - sudo apt update
-      - sudo apt install -y build-essential git wget apt-transport-https curl
+      - sudo apt install -y build-essential git wget apt-transport-https curl zip unzip
 
   ubuntu:prep:config:
     cmds:
@@ -42,6 +41,7 @@ tasks:
       - sudo apt update
       - sudo apt install -y htop eza bat ripgrep fd-find fzf
       - task: ubuntu:install:signal
+      - task: ubuntu:install:spotify
       - task: install:z
       - task: install:starship
 
@@ -53,6 +53,11 @@ tasks:
       - task: ubuntu:install:direnv
       - task: ubuntu:install:code
       - task: ubuntu:install:python
+      - task: install:lang:manager
+      - task: install:lang:python
+      - task: install:lang:golang
+      - task: install:lang:dart
+      - task: install:lang:flutter
 
   ubuntu:install:docker:
     desc: Install Docker enginer (https://docs.docker.com/engine/install/ubuntu/)
@@ -83,7 +88,6 @@ tasks:
       - sudo usermod -aG docker $USER
       - newgrp docker
 
-
   ubuntu:install:direnv:
     desc: Install direnv (https://direnv.net/)
     status:
@@ -98,11 +102,11 @@ tasks:
     status:
       - code --version
     cmds:
-    - sudo apt-get install wget gpg
-    - wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
-    - sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
-    - echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" |sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
-    - rm -f packages.microsoft.gpg
+      - sudo apt-get install wget gpg
+      - wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+      - sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
+      - echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" |sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
+      - rm -f packages.microsoft.gpg
 
   ubuntu:install:spotify:
     desc: Install Spotify app (https://www.spotify.com/)
@@ -138,7 +142,6 @@ tasks:
       - sudo apt update
       - sudo apt install -y python3 python3-pip python3-venv python3-dev
 
-
   ubuntu:install:signal:
     desc: Install Signal app (https://signal.org/)
     cmds:
@@ -155,7 +158,7 @@ tasks:
     desc: Install Z script
     preconditions:
       - curl --version
-      - test -f {{.SHELL_CFG}}  # Write to .bashrc
+      - test -f {{.SHELL_CFG}} # Write to .bashrc
     status:
       - test -f ~/.dotfiles/z
       - grep -q 'source ~/.dotfiles/z' {{.SHELL_CFG}}
@@ -169,7 +172,7 @@ tasks:
     desc: Install Starship prompt (https://starship.rs/)
     preconditions:
       - curl --version
-      - test -f {{.SHELL_CFG}}  # Write to {{.SHELL_CFG}}, e.g. {{.SHELL_CFG
+      - test -f {{.SHELL_CFG}} # Write to {{.SHELL_CFG}}, e.g. {{.SHELL_CFG
     status:
       - grep -q 'eval "$(starship init {{.SHELL}})"' {{.SHELL_CFG}}
     cmds:
@@ -181,6 +184,8 @@ tasks:
     desc: Install [asdf](https://asdf-vm.com/) as a lanague version manager
     env:
       ASDF_VERSION: v0.14.0
+    status:
+      - asdf --version
     cmds:
       - git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch $ASDF_VERSION
       - printf '\n# Asdf\n' >> {{.SHELL_CFG}}
@@ -193,6 +198,26 @@ tasks:
       - sudo apt-get update && sudo apt-get install apt-transport-https
       - wget -qO- https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo gpg  --dearmor -o /usr/share/keyrings/dart.gpg
       - sudo apt-get update && sudo apt-get install dart
+
+  install:lang:flutter:
+    desc: Installs Flutter SDK
+    preconditions:
+      - asdf --version
+    cmds:
+      - sudo apt update
+      - sudo apt install -y cmake clang ninja-build libgtk-3-dev
+      - asdf plugin add flutter
+      - asdf install flutter latest
+      - asdf global flutter latest
+      - printf '\n# Flutter\n' >> {{.SHELL_CFG}}
+      - printf 'export FLUTTER_ROOT="$(asdf where flutter)"\n' >> {{.SHELL_CFG}}
+
+  install:androidstudio:
+    desc: Install Android Studio
+    preconditions:
+      - snap --version
+    cmds:
+      - sudo snap install android-studio --classic
 
   install:lang:python:
     desc: Installs Python programming language
