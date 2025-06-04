@@ -1,0 +1,141 @@
+version: 3
+
+vars:
+  SHELL: bash
+  SHELL_CFG: ~/.bashrc
+
+tasks:
+  # PREP
+  macos:prep:
+    desc: Prepare macos for installation
+    cmds:
+      - task: macos:prep:install
+      - task: macos:prep:config
+
+  macos:prep:config:
+    cmds:
+      - task: macos:prep:alias
+
+  macos:prep:alias:
+    desc: Add aliases to .bashrc
+    cmds:
+      - mkdir -p ~/.dotfiles
+      - cp alias.macos ~/.dotfiles/.alias
+      - printf '\n# Aliases\n' >> {{.SHELL_CFG}}
+      - printf 'source ~/.dotfiles/.alias\n' >> {{.SHELL_CFG}}
+
+  # INSTALL
+  macos:install:
+    desc: Install everything for macos
+    cmds:
+      - task: macos:install:useful
+      - task: macos:install:vim
+      - task: macos:install:dev
+
+  macos:install:useful:
+    cmds:
+      - brew update
+      - brew install htop eza bat ripgrep fd fzf
+      - task: install:z
+      - task: install:starship
+
+  macos:install:dev:
+    desc: Install developer related tools
+    cmds:
+      - brew install tmux
+      - task: macos:install:docker
+      - task: macos:install:direnv
+      - task: macos:install:python
+      - task: install:lang:manager
+
+
+  macos:install:direnv:
+    desc: Install direnv (https://direnv.net/)
+    status:
+      - direnv --version
+      - grep -q 'eval "$(direnv hook {{.SHELL}})"' {{.SHELL_CFG}}
+    cmds:
+      - brew install direnv
+      - printf '\n# Direnv\n' >> {{.SHELL_CFG}}
+      - printf 'eval "$(direnv hook {{.SHELL}})"\n' >> {{.SHELL_CFG}}
+
+  macos:install:spotify:
+    desc: Install Spotify app (https://www.spotify.com/)
+    status:
+      - spotify --version
+    cmds:
+      - snap install spotify
+
+  # Vim
+  macos:install:vim:
+    cmds:
+      - brew install neovim
+      # - task: vim:config
+
+  vim:config:
+    cmds:
+      - curl -o ~/.vimrc https://gist.githubusercontent.com/laszukdawid/059ae4c41f516e206832637e5215fe6f/raw/8dfdf85184b0afd9e1550afea99848a7482f4bd5/.vimrc
+      # Pathogen
+      - mkdir -p ~/.vim/autoload ~/.vim/bundle
+      - curl -LSso ~/.vim/autoload/pathogen.vim https://tpo.pe/pathogen.vim
+      # Configure Neovim to use .vimrc
+      - mkdir -p ~/.config/nvim
+      - |
+        cat >> ~/.config/nvim/init.vim << EOF
+        set runtimepath^=~/.vim runtimepath+=~/.vim/after
+        let &packpath = &runtimepath
+        source ~/.vimrc
+        EOF
+
+  macos:install:python:
+    cmds:
+      - echo "Installing uv so that we can use it in our Python projects"
+      - brew install uv
+
+  macos:install:signal:
+    desc: Install Signal app (https://signal.org/)
+    cmds:
+      # 1. Install our official public software signing key:
+      - wget -O- https://updates.signal.org/desktop/apt/keys.asc | gpg --dearmor > signal-desktop-keyring.gpg
+      - cat signal-desktop-keyring.gpg | sudo tee /usr/share/keyrings/signal-desktop-keyring.gpg > /dev/null
+      # 2. Add our repository to your list of repositories:
+      - echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/signal-desktop-keyring.gpg] https://updates.signal.org/desktop/apt xenial main' | sudo tee /etc/apt/sources.list.d/signal-xenial.list
+      # 3. Update your package database and install Signal:
+      - sudo apt update
+      - sudo apt install signal-desktop
+
+  install:z:
+    desc: Install Z script
+    preconditions:
+      - curl --version
+      - test -f {{.SHELL_CFG}} # Write to .bashrc
+    status:
+      - test -f ~/.dotfiles/z
+      - grep -q 'source ~/.dotfiles/z' {{.SHELL_CFG}}
+    cmds:
+      - curl -o ~/.dotfiles/z https://raw.githubusercontent.com/laszukdawid/z/master/z.sh
+      - chmod a+x ~/.dotfiles/z
+      - printf '\n# Z script\n' >> {{.SHELL_CFG}}
+      - printf 'source ~/.dotfiles/z\n' >> {{.SHELL_CFG}}
+
+  install:starship:
+    desc: Install Starship prompt (https://starship.rs/)
+    preconditions:
+      - curl --version
+      - test -f {{.SHELL_CFG}} # Write to {{.SHELL_CFG}}, e.g. {{.SHELL_CFG
+    status:
+      - grep -q 'eval "$(starship init {{.SHELL}})"' {{.SHELL_CFG}}
+    cmds:
+      - brew install starship
+      - printf '\n# Starship prompt\n' >> {{.SHELL_CFG}}
+      - printf 'eval "$(starship init {{.SHELL}})"\n' >> {{.SHELL_CFG}}
+
+  install:lang:manager:
+    desc: Install [asdf](https://asdf-vm.com/) as a lanague version manager
+    status:
+      - asdf --version
+    cmds:
+      - brew install asdf
+      - printf '\n# Asdf\n' >> {{.SHELL_CFG}}
+      - printf 'export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"\n' >> {{.SHELL_CFG}}
+      - printf '. <(asdf completion bash)\n' >> {{.SHELL_CFG}}
