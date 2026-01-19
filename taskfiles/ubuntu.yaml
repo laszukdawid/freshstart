@@ -1,0 +1,184 @@
+version: 3
+
+vars:
+  SHELL: bash
+  SHELL_CFG: ~/.bashrc
+
+tasks:
+  # PREP
+  prep:
+    desc: Prepare Ubuntu for installation
+    cmds:
+      - task: prep:install
+      - task: prep:config
+
+  prep:install:
+    desc: Install base packages on Ubuntu
+    cmds:
+      - sudo apt update
+      - sudo apt install -y build-essential git wget apt-transport-https curl zip unzip
+
+  prep:config:
+    cmds:
+      - task: common:prep:alias
+
+  # INSTALL
+  install:
+    desc: Install everything for Ubuntu
+    cmds:
+      - task: install:useful
+      - task: install:vim
+      - task: install:dev
+
+  install:useful:
+    desc: Install useful CLI utilities
+    cmds:
+      - sudo apt update
+      - sudo apt install -y htop eza bat ripgrep fd-find fzf
+      - task: install:signal
+      - task: install:spotify
+      - task: common:install:kitty
+      - task: common:install:z
+      - task: common:install:starship
+
+  install:dev:
+    desc: Install developer related tools
+    cmds:
+      - sudo apt install -y tmux
+      - task: install:docker
+      - task: install:direnv
+      - task: install:code
+      - task: install:python
+      - task: common:install:lang:manager
+      - task: install:lang:python
+      - task: common:install:lang:golang
+      - task: install:lang:dart
+      - task: install:lang:flutter
+
+  # VIM
+  install:vim:
+    desc: Install Neovim on Ubuntu
+    cmds:
+      - sudo apt update
+      - sudo apt install -y neovim
+      - task: common:install:vim:config
+
+  # DOCKER
+  install:docker:
+    desc: Install Docker engine (https://docs.docker.com/engine/install/ubuntu/)
+    status:
+      - docker --version
+      - docker compose version
+    preconditions:
+      - curl --version
+    cmds:
+      - sudo apt-get update
+      - sudo apt-get install -y ca-certificates curl
+      - sudo install -m 0755 -d /etc/apt/keyrings
+      - sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+      - sudo chmod a+r /etc/apt/keyrings/docker.asc
+      - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      - sudo apt-get update
+      - sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      - task: common:install:docker:post
+
+  # DIRENV
+  install:direnv:
+    desc: Install direnv (https://direnv.net/)
+    status:
+      - direnv --version
+      - grep -q 'eval "$(direnv hook {{.SHELL}})"' {{.SHELL_CFG}}
+    cmds:
+      - sudo apt install -y direnv
+      - printf '\n# Direnv\n' >> {{.SHELL_CFG}}
+      - printf 'eval "$(direnv hook {{.SHELL}})"\n' >> {{.SHELL_CFG}}
+
+  # VS CODE
+  install:code:
+    desc: Install VS Code on Ubuntu
+    status:
+      - code --version
+    cmds:
+      - sudo apt-get install -y wget gpg
+      - wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+      - sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
+      - echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
+      - rm -f packages.microsoft.gpg
+      - sudo apt update
+      - sudo apt install -y code
+
+  # PYTHON (system)
+  install:python:
+    desc: Install Python3 system packages on Ubuntu
+    cmds:
+      - sudo apt update
+      - sudo apt install -y python3 python3-pip python3-venv python3-dev
+
+  # PYTHON DEPS (for asdf)
+  install:python:deps:
+    desc: Install Python build dependencies on Ubuntu
+    cmds:
+      - sudo apt install -y libsqlite3-dev libbz2-dev liblzma-dev libffi-dev libncurses-dev libreadline-dev libssl-dev
+
+  # LANGUAGE TASKS (that call common with deps)
+  install:lang:python:
+    desc: Install Python via asdf with Ubuntu dependencies
+    cmds:
+      - task: install:python:deps
+      - task: common:install:lang:python
+
+  install:lang:dart:
+    desc: Install Dart programming language on Ubuntu
+    cmds:
+      - sudo apt-get update
+      - sudo apt-get install -y apt-transport-https
+      - wget -qO- https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/dart.gpg
+      - echo 'deb [signed-by=/usr/share/keyrings/dart.gpg arch=amd64] https://storage.googleapis.com/download.dartlang.org/linux/debian stable main' | sudo tee /etc/apt/sources.list.d/dart_stable.list
+      - sudo apt-get update
+      - sudo apt-get install -y dart
+
+  install:flutter:deps:
+    desc: Install Flutter dependencies on Ubuntu
+    cmds:
+      - sudo apt update
+      - sudo apt install -y cmake clang ninja-build libgtk-3-dev
+
+  install:lang:flutter:
+    desc: Install Flutter SDK on Ubuntu
+    cmds:
+      - task: install:flutter:deps
+      - task: common:install:lang:flutter
+
+  # APPS (using Snap)
+  install:signal:
+    desc: Install Signal app via apt repo
+    status:
+      - which signal-desktop
+    cmds:
+      - wget -O- https://updates.signal.org/desktop/apt/keys.asc | gpg --dearmor > signal-desktop-keyring.gpg
+      - cat signal-desktop-keyring.gpg | sudo tee /usr/share/keyrings/signal-desktop-keyring.gpg > /dev/null
+      - echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/signal-desktop-keyring.gpg] https://updates.signal.org/desktop/apt xenial main' | sudo tee /etc/apt/sources.list.d/signal-xenial.list
+      - rm signal-desktop-keyring.gpg
+      - sudo apt update
+      - sudo apt install -y signal-desktop
+
+  install:spotify:
+    desc: Install Spotify via Snap
+    status:
+      - snap list spotify
+    cmds:
+      - sudo snap install spotify
+
+  install:aws:
+    desc: Install AWS CLI v2 via Snap
+    status:
+      - aws --version
+    cmds:
+      - sudo snap install aws-cli --classic
+
+  install:androidstudio:
+    desc: Install Android Studio via Snap
+    status:
+      - snap list android-studio
+    cmds:
+      - sudo snap install android-studio --classic

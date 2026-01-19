@@ -1,0 +1,143 @@
+version: 3
+
+vars:
+  SHELL: bash
+  SHELL_CFG: ~/.bashrc
+
+tasks:
+  # PREP
+  prep:alias:
+    desc: Add aliases to .bashrc
+    preconditions:
+      - test -d ~/.dotfiles || mkdir -p ~/.dotfiles
+    status:
+      - test -f ~/.dotfiles/.alias
+      - grep -q 'source ~/.dotfiles/.alias' {{.SHELL_CFG}}
+    cmds:
+      - cp alias ~/.dotfiles/.alias
+      - printf '\n# Aliases\n' >> {{.SHELL_CFG}}
+      - printf 'source ~/.dotfiles/.alias\n' >> {{.SHELL_CFG}}
+
+  # TERMINAL
+  install:kitty:
+    desc: Install Kitty terminal emulator
+    status:
+      - kitty --version
+    cmds:
+      - curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin
+      - mkdir -p ~/.local/bin
+      - ln -sf ~/.local/kitty.app/bin/kitty ~/.local/kitty.app/bin/kitten ~/.local/bin/
+      - cp ~/.local/kitty.app/share/applications/kitty.desktop ~/.local/share/applications/
+      - cp ~/.local/kitty.app/share/applications/kitty-open.desktop ~/.local/share/applications/
+      - sed -i "s|Icon=kitty|Icon=$(readlink -f ~)/.local/kitty.app/share/icons/hicolor/256x256/apps/kitty.png|g" ~/.local/share/applications/kitty*.desktop
+      - sed -i "s|Exec=kitty|Exec=$(readlink -f ~)/.local/kitty.app/bin/kitty|g" ~/.local/share/applications/kitty*.desktop
+      - echo 'kitty.desktop' > ~/.config/xdg-terminals.list
+
+  # SHELL UTILITIES
+  install:z:
+    desc: Install Z script for directory navigation
+    preconditions:
+      - curl --version
+      - test -f {{.SHELL_CFG}}
+    status:
+      - test -f ~/.dotfiles/z
+      - grep -q 'source ~/.dotfiles/z' {{.SHELL_CFG}}
+    cmds:
+      - mkdir -p ~/.dotfiles
+      - curl -o ~/.dotfiles/z https://raw.githubusercontent.com/laszukdawid/z/master/z.sh
+      - chmod a+x ~/.dotfiles/z
+      - printf '\n# Z script\n' >> {{.SHELL_CFG}}
+      - printf 'source ~/.dotfiles/z\n' >> {{.SHELL_CFG}}
+
+  install:starship:
+    desc: Install Starship prompt (https://starship.rs/)
+    preconditions:
+      - curl --version
+      - test -f {{.SHELL_CFG}}
+    status:
+      - starship --version
+      - grep -q 'eval "$(starship init {{.SHELL}})"' {{.SHELL_CFG}}
+    cmds:
+      - curl -sS https://starship.rs/install.sh | sh -s -- -y
+      - printf '\n# Starship prompt\n' >> {{.SHELL_CFG}}
+      - printf 'eval "$(starship init {{.SHELL}})"\n' >> {{.SHELL_CFG}}
+
+  # VIM
+  install:vim:config:
+    desc: Configure Vim/Neovim with custom vimrc and Pathogen
+    cmds:
+      - curl -o ~/.vimrc https://gist.githubusercontent.com/laszukdawid/059ae4c41f516e206832637e5215fe6f/raw/8dfdf85184b0afd9e1550afea99848a7482f4bd5/.vimrc
+      - mkdir -p ~/.vim/autoload ~/.vim/bundle
+      - curl -LSso ~/.vim/autoload/pathogen.vim https://tpo.pe/pathogen.vim
+      - mkdir -p ~/.config/nvim
+      - |
+        cat >> ~/.config/nvim/init.vim << EOF
+        set runtimepath^=~/.vim runtimepath+=~/.vim/after
+        let &packpath = &runtimepath
+        source ~/.vimrc
+        EOF
+
+  # LANGUAGE VERSION MANAGER
+  install:lang:manager:
+    desc: Install asdf as a language version manager (https://asdf-vm.com/)
+    env:
+      ASDF_VERSION: v0.14.0
+    status:
+      - asdf --version
+    cmds:
+      - git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch $ASDF_VERSION
+      - printf '\n# Asdf\n' >> {{.SHELL_CFG}}
+      - printf '. "$HOME/.asdf/asdf.sh"\n' >> {{.SHELL_CFG}}
+      - printf '. "$HOME/.asdf/completions/asdf.bash"\n' >> {{.SHELL_CFG}}
+
+  install:lang:python:
+    desc: Install Python via asdf
+    preconditions:
+      - asdf --version
+    env:
+      PYTHON_VERSION: latest
+    cmds:
+      - task: "{{.OS}}:install:python:deps"
+      - asdf plugin add python
+      - asdf install python $PYTHON_VERSION
+      - asdf global python $PYTHON_VERSION
+
+  install:lang:golang:
+    desc: Install Go via asdf
+    preconditions:
+      - asdf --version
+    env:
+      GO_VERSION: latest
+    cmds:
+      - asdf plugin add golang
+      - asdf install golang $GO_VERSION
+      - asdf global golang $GO_VERSION
+
+  install:lang:flutter:
+    desc: Install Flutter SDK via asdf
+    preconditions:
+      - asdf --version
+    cmds:
+      - task: "{{.OS}}:install:flutter:deps"
+      - asdf plugin add flutter
+      - asdf install flutter latest
+      - asdf global flutter latest
+      - printf '\n# Flutter\n' >> {{.SHELL_CFG}}
+      - printf 'export FLUTTER_ROOT="$(asdf where flutter)"\n' >> {{.SHELL_CFG}}
+
+  # PYTHON TOOLS
+  python:install:uv:
+    desc: Install uv for Python
+    status:
+      - uv --version
+    cmd: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+  # DOCKER POST-INSTALL (common for both OSes)
+  install:docker:post:
+    desc: Configure Docker to run without sudo
+    status:
+      - docker run hello-world
+    cmds:
+      - sudo groupadd docker || true
+      - sudo usermod -aG docker $USER
+      - echo "Please log out and back in for Docker group changes to take effect"

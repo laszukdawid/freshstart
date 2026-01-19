@@ -1,0 +1,195 @@
+version: 3
+
+vars:
+  SHELL: bash
+  SHELL_CFG: ~/.bashrc
+
+tasks:
+  # PREP
+  prep:
+    desc: Prepare Fedora for installation
+    cmds:
+      - task: prep:install
+      - task: prep:config
+
+  prep:install:
+    desc: Install base packages on Fedora
+    cmds:
+      - sudo dnf update -y
+      - sudo dnf groupinstall -y "Development Tools"
+      - sudo dnf install -y git wget curl zip unzip
+
+  prep:config:
+    cmds:
+      - task: common:prep:alias
+
+  # INSTALL
+  install:
+    desc: Install everything for Fedora
+    cmds:
+      - task: install:useful
+      - task: install:vim
+      - task: install:dev
+
+  install:useful:
+    desc: Install useful CLI utilities
+    cmds:
+      - sudo dnf install -y htop eza bat ripgrep fd-find fzf
+      - task: install:signal
+      - task: install:spotify
+      - task: common:install:kitty
+      - task: common:install:z
+      - task: common:install:starship
+
+  install:dev:
+    desc: Install developer related tools
+    cmds:
+      - sudo dnf install -y tmux
+      - task: install:docker
+      - task: install:direnv
+      - task: install:code
+      - task: install:python
+      - task: common:install:lang:manager
+      - task: install:lang:python
+      - task: common:install:lang:golang
+      - task: install:lang:dart
+      - task: install:lang:flutter
+
+  # VIM
+  install:vim:
+    desc: Install Neovim on Fedora
+    cmds:
+      - sudo dnf install -y neovim
+      - task: common:install:vim:config
+
+  # DOCKER
+  install:docker:
+    desc: Install Docker engine (https://docs.docker.com/engine/install/fedora/)
+    status:
+      - docker --version
+      - docker compose version
+    cmds:
+      - sudo dnf -y install dnf-plugins-core
+      - sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+      - sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      - sudo systemctl start docker
+      - sudo systemctl enable docker
+      - task: common:install:docker:post
+
+  # DIRENV
+  install:direnv:
+    desc: Install direnv (https://direnv.net/)
+    status:
+      - direnv --version
+      - grep -q 'eval "$(direnv hook {{.SHELL}})"' {{.SHELL_CFG}}
+    cmds:
+      - sudo dnf install -y direnv
+      - printf '\n# Direnv\n' >> {{.SHELL_CFG}}
+      - printf 'eval "$(direnv hook {{.SHELL}})"\n' >> {{.SHELL_CFG}}
+
+  # VS CODE
+  install:code:
+    desc: Install VS Code on Fedora via Microsoft RPM repo
+    status:
+      - code --version
+    cmds:
+      - sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+      - |
+        cat <<EOF | sudo tee /etc/yum.repos.d/vscode.repo
+        [code]
+        name=Visual Studio Code
+        baseurl=https://packages.microsoft.com/yumrepos/vscode
+        enabled=1
+        gpgcheck=1
+        gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+        EOF
+      - sudo dnf check-update || true
+      - sudo dnf install -y code
+
+  # PYTHON (system)
+  install:python:
+    desc: Install Python3 system packages on Fedora
+    cmds:
+      - sudo dnf install -y python3 python3-pip python3-devel
+
+  # PYTHON DEPS (for asdf)
+  install:python:deps:
+    desc: Install Python build dependencies on Fedora
+    cmds:
+      - sudo dnf install -y sqlite-devel bzip2-devel xz-devel libffi-devel ncurses-devel readline-devel openssl-devel zlib-devel
+
+  # LANGUAGE TASKS
+  install:lang:python:
+    desc: Install Python via asdf with Fedora dependencies
+    cmds:
+      - task: install:python:deps
+      - task: common:install:lang:python
+
+  install:lang:dart:
+    desc: Install Dart programming language on Fedora
+    status:
+      - dart --version
+    cmds:
+      - sudo dnf install -y which xz-utils
+      - curl -fsSL https://storage.googleapis.com/dart-archive/channels/stable/release/latest/sdk/dartsdk-linux-x64-release.zip -o /tmp/dart-sdk.zip
+      - sudo unzip -o /tmp/dart-sdk.zip -d /opt
+      - sudo ln -sf /opt/dart-sdk/bin/dart /usr/local/bin/dart
+      - rm /tmp/dart-sdk.zip
+
+  install:flutter:deps:
+    desc: Install Flutter dependencies on Fedora
+    cmds:
+      - sudo dnf install -y cmake clang ninja-build gtk3-devel
+
+  install:lang:flutter:
+    desc: Install Flutter SDK on Fedora
+    cmds:
+      - task: install:flutter:deps
+      - task: common:install:lang:flutter
+
+  # FLATPAK SETUP
+  setup:flatpak:
+    desc: Ensure Flatpak and Flathub are configured
+    status:
+      - flatpak remote-list | grep -q flathub
+    cmds:
+      - sudo dnf install -y flatpak
+      - flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+  # APPS (using Flatpak)
+  install:signal:
+    desc: Install Signal app via Flatpak
+    deps:
+      - setup:flatpak
+    status:
+      - flatpak list | grep -q org.signal.Signal
+    cmds:
+      - flatpak install -y flathub org.signal.Signal
+
+  install:spotify:
+    desc: Install Spotify via Flatpak
+    deps:
+      - setup:flatpak
+    status:
+      - flatpak list | grep -q com.spotify.Client
+    cmds:
+      - flatpak install -y flathub com.spotify.Client
+
+  install:aws:
+    desc: Install AWS CLI v2 via official installer
+    status:
+      - aws --version
+    cmds:
+      - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+      - unzip -o /tmp/awscliv2.zip -d /tmp
+      - sudo /tmp/aws/install --update
+      - rm -rf /tmp/awscliv2.zip /tmp/aws
+
+  install:androidstudio:
+    desc: Install Android Studio via Flatpak
+    deps:
+      - setup:flatpak
+    status:
+      - flatpak list | grep -q com.google.AndroidStudio
+    cmds:
+      - flatpak install -y flathub com.google.AndroidStudio

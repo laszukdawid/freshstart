@@ -4,241 +4,155 @@ vars:
   SHELL: bash
   SHELL_CFG: ~/.bashrc
 
+includes:
+  common:
+    taskfile: ./taskfiles/common.yaml
+    optional: false
+  ubuntu:
+    taskfile: ./taskfiles/ubuntu.yaml
+    optional: true
+  fedora:
+    taskfile: ./taskfiles/fedora.yaml
+    optional: true
+
 tasks:
-  # PREP
-  ubuntu:prep:
-    desc: Prepare Ubuntu for installation
+  default:
+    desc: Show available tasks
     cmds:
-      - task: ubuntu:prep:install
-      - task: ubuntu:prep:config
+      - task --list
 
-  ubuntu:prep:install:
+  # OS DETECTION
+  detect-os:
+    desc: Detect the current operating system
+    silent: true
     cmds:
-      - sudo apt update
-      - sudo apt install -y build-essential git wget apt-transport-https curl zip unzip
-
-  ubuntu:prep:config:
-    cmds:
-      - task: ubuntu:prep:alias
-
-  ubuntu:prep:alias:
-    desc: Add aliases to .bashrc
-    cmds:
-      - cp alias ~/.dotfiles/.alias
-      - printf '\n# Aliases\n' >> {{.SHELL_CFG}}
-      - printf 'source ~/.dotfiles/.alias\n' >> {{.SHELL_CFG}}
-
-  # INSTALL
-  ubuntu:install:
-    desc: Install everything for Ubuntu
-    cmds:
-      - task: ubuntu:install:useful
-      - task: ubuntu:install:vim
-      - task: ubuntu:install:dev
-
-  ubuntu:install:useful:
-    cmds:
-      - sudo apt update
-      - sudo apt install -y htop eza bat ripgrep fd-find fzf
-      - task: ubuntu:install:signal
-      - task: ubuntu:install:spotify
-      - task: install:z
-      - task: install:starship
-
-  ubuntu:install:dev:
-    desc: Install developer related tools
-    cmds:
-      - sudo apt install -y tmux
-      - task: ubuntu:install:docker
-      - task: ubuntu:install:direnv
-      - task: ubuntu:install:code
-      - task: ubuntu:install:python
-      - task: install:lang:manager
-      - task: install:lang:python
-      - task: install:lang:golang
-      - task: install:lang:dart
-      - task: install:lang:flutter
-
-  ubuntu:install:docker:
-    desc: Install Docker enginer (https://docs.docker.com/engine/install/ubuntu/)
-    status:
-      - sudo docker --version
-      - sudo docker-compose --version
-    preconditions:
-      - curl --version
-    cmds:
-      # Add Docker's official GPG key:
-      - sudo apt-get update
-      - sudo apt-get install -y ca-certificates curl
-      - sudo install -m 0755 -d /etc/apt/keyrings
-      - sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-      - sudo chmod a+r /etc/apt/keyrings/docker.asc
-      # Add the repository to Apt sources:
-      - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-      - sudo apt-get update
-      - sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-      # Configure Docker to not use sudo
-      - task: install:docker:post
-
-  install:docker:post:
-    status:
-      - docker run hello-world
-    cmds:
-      - sudo groupadd docker
-      - sudo usermod -aG docker $USER
-      - newgrp docker
-
-  ubuntu:install:direnv:
-    desc: Install direnv (https://direnv.net/)
-    status:
-      - direnv --version
-      - grep -q 'eval "$(direnv hook {{.SHELL}})"' {{.SHELL_CFG}}
-    cmds:
-      - sudo apt install -y direnv
-      - printf '\n# Direnv\n' >> {{.SHELL_CFG}}
-      - printf 'eval "$(direnv hook {{.SHELL}})"\n' >> {{.SHELL_CFG}}
-
-  ubuntu:install:code:
-    status:
-      - code --version
-    cmds:
-      - sudo apt-get install wget gpg
-      - wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
-      - sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
-      - echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" |sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
-      - rm -f packages.microsoft.gpg
-
-  ubuntu:install:spotify:
-    desc: Install Spotify app (https://www.spotify.com/)
-    status:
-      - spotify --version
-    cmds:
-      - snap install spotify
-
-  # Vim
-  ubuntu:install:vim:
-    cmds:
-      - sudo apt update
-      - sudo apt install -y neovim
-      - task: vim:config
-
-  vim:config:
-    cmds:
-      - curl -o ~/.vimrc https://gist.githubusercontent.com/laszukdawid/059ae4c41f516e206832637e5215fe6f/raw/8dfdf85184b0afd9e1550afea99848a7482f4bd5/.vimrc
-      # Pathogen
-      - mkdir -p ~/.vim/autoload ~/.vim/bundle
-      - curl -LSso ~/.vim/autoload/pathogen.vim https://tpo.pe/pathogen.vim
-      # Configure Neovim to use .vimrc
-      - mkdir -p ~/.config/nvim
       - |
-        cat >> ~/.config/nvim/init.vim << EOF
-        set runtimepath^=~/.vim runtimepath+=~/.vim/after
-        let &packpath = &runtimepath
-        source ~/.vimrc
-        EOF
+        if [ -f /etc/os-release ]; then
+          . /etc/os-release
+          echo $ID
+        else
+          echo "unknown"
+        fi
 
-  ubuntu:install:python:
-    cmds:
-      - sudo apt update
-      - sudo apt install -y python3 python3-pip python3-venv python3-dev
+  # ABSTRACTED APP INSTALLATION
+  # These tasks detect the OS and call the appropriate OS-specific task
 
-  ubuntu:install:signal:
-    desc: Install Signal app (https://signal.org/)
+  install:spotify:
+    desc: Install Spotify (uses Snap on Ubuntu, Flatpak on Fedora)
     cmds:
-      # 1. Install our official public software signing key:
-      - wget -O- https://updates.signal.org/desktop/apt/keys.asc | gpg --dearmor > signal-desktop-keyring.gpg
-      - cat signal-desktop-keyring.gpg | sudo tee /usr/share/keyrings/signal-desktop-keyring.gpg > /dev/null
-      # 2. Add our repository to your list of repositories:
-      - echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/signal-desktop-keyring.gpg] https://updates.signal.org/desktop/apt xenial main' | sudo tee /etc/apt/sources.list.d/signal-xenial.list
-      # 3. Update your package database and install Signal:
-      - sudo apt update
-      - sudo apt install signal-desktop
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install:spotify ;;
+          fedora) task fedora:install:spotify ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
 
-  install:z:
-    desc: Install Z script
-    preconditions:
-      - curl --version
-      - test -f {{.SHELL_CFG}} # Write to .bashrc
-    status:
-      - test -f ~/.dotfiles/z
-      - grep -q 'source ~/.dotfiles/z' {{.SHELL_CFG}}
+  install:signal:
+    desc: Install Signal (uses apt repo on Ubuntu, Flatpak on Fedora)
     cmds:
-      - curl -o ~/.dotfiles/z https://raw.githubusercontent.com/laszukdawid/z/master/z.sh
-      - chmod a+x ~/.dotfiles/z
-      - printf '\n# Z script\n' >> {{.SHELL_CFG}}
-      - printf 'source ~/.dotfiles/z\n' >> {{.SHELL_CFG}}
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install:signal ;;
+          fedora) task fedora:install:signal ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
 
-  install:starship:
-    desc: Install Starship prompt (https://starship.rs/)
-    preconditions:
-      - curl --version
-      - test -f {{.SHELL_CFG}} # Write to {{.SHELL_CFG}}, e.g. {{.SHELL_CFG
-    status:
-      - grep -q 'eval "$(starship init {{.SHELL}})"' {{.SHELL_CFG}}
+  install:aws:
+    desc: Install AWS CLI v2 (uses Snap on Ubuntu, official installer on Fedora)
     cmds:
-      - curl -sS https://starship.rs/install.sh | sh -s -- -y
-      - printf '\n# Starship prompt\n' >> {{.SHELL_CFG}}
-      - printf 'eval "$(starship init {{.SHELL}})"\n' >> {{.SHELL_CFG}}
-
-  install:lang:manager:
-    desc: Install [asdf](https://asdf-vm.com/) as a lanague version manager
-    env:
-      ASDF_VERSION: v0.14.0
-    status:
-      - asdf --version
-    cmds:
-      - git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch $ASDF_VERSION
-      - printf '\n# Asdf\n' >> {{.SHELL_CFG}}
-      - printf '. "$HOME/.asdf/asdf.sh"\n' >> {{.SHELL_CFG}}
-      - printf '. "$HOME/.asdf/completions/asdf.bash"\n' >> {{.SHELL_CFG}}
-
-  install:lang:dart:
-    desc: Installs Dart programming language
-    cmds:
-      - sudo apt-get update && sudo apt-get install apt-transport-https
-      - wget -qO- https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo gpg  --dearmor -o /usr/share/keyrings/dart.gpg
-      - sudo apt-get update && sudo apt-get install dart
-
-  install:lang:flutter:
-    desc: Installs Flutter SDK
-    preconditions:
-      - asdf --version
-    cmds:
-      - sudo apt update
-      - sudo apt install -y cmake clang ninja-build libgtk-3-dev
-      - asdf plugin add flutter
-      - asdf install flutter latest
-      - asdf global flutter latest
-      - printf '\n# Flutter\n' >> {{.SHELL_CFG}}
-      - printf 'export FLUTTER_ROOT="$(asdf where flutter)"\n' >> {{.SHELL_CFG}}
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install:aws ;;
+          fedora) task fedora:install:aws ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
 
   install:androidstudio:
-    desc: Install Android Studio
-    preconditions:
-      - snap --version
+    desc: Install Android Studio (uses Snap on Ubuntu, Flatpak on Fedora)
     cmds:
-      - sudo snap install android-studio --classic
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install:androidstudio ;;
+          fedora) task fedora:install:androidstudio ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
 
-  install:lang:python:
-    desc: Installs Python programming language
-    preconditions:
-      - asdf --version
-    env:
-      PYTHON_VERSION: latest
+  install:code:
+    desc: Install VS Code (uses apt repo on Ubuntu, rpm repo on Fedora)
     cmds:
-      - echo "First installing dependencies (assuming we're on Ubuntu)"
-      - sudo apt install -y libsqlite3-dev libbz2-dev liblzma-dev libffi-dev libncurses-dev
-      - asdf plugin add python
-      - asdf install python $PYTHON_VERSION
-      - asdf global python $PYTHON_VERSION
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install:code ;;
+          fedora) task fedora:install:code ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
+
+  install:docker:
+    desc: Install Docker (uses apt repo on Ubuntu, dnf repo on Fedora)
+    cmds:
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install:docker ;;
+          fedora) task fedora:install:docker ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
+
+  # CONVENIENCE TASKS
+  prep:
+    desc: Prepare system for installation (auto-detects OS)
+    cmds:
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:prep ;;
+          fedora) task fedora:prep ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
+
+  install:
+    desc: Install everything (auto-detects OS)
+    cmds:
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install ;;
+          fedora) task fedora:install ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
+
+  # RE-EXPORT COMMON TASKS AT ROOT LEVEL
+  install:kitty:
+    desc: Install Kitty terminal emulator
+    cmds:
+      - task: common:install:kitty
+
+  install:z:
+    desc: Install Z script for directory navigation
+    cmds:
+      - task: common:install:z
+
+  install:starship:
+    desc: Install Starship prompt
+    cmds:
+      - task: common:install:starship
+
+  install:lang:manager:
+    desc: Install asdf language version manager
+    cmds:
+      - task: common:install:lang:manager
 
   install:lang:golang:
-    desc: Installs Go programming language
-    preconditions:
-      - asdf --version
-    env:
-      GO_VERSION: latest
+    desc: Install Go via asdf
     cmds:
-      - asdf plugin add golang
-      - asdf install golang $GO_VERSION
-      - asdf global golang $GO_VERSION
+      - task: common:install:lang:golang
+
+  python:install:uv:
+    desc: Install uv for Python
+    cmds:
+      - task: common:python:install:uv

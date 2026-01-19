@@ -1,7 +1,7 @@
-alias ls='exa'
-alias ll='exa -al'
-alias la='exa -a'
-alias l='exa -l'
+alias ls='eza'
+alias ll='eza -al'
+alias la='eza -a'
+alias l='eza -l'
 
 alias grep='grep --color=auto'
 alias fgrep='fgrep --color=auto'
