@@ -1,0 +1,158 @@
+version: 3
+
+vars:
+  SHELL: bash
+  SHELL_CFG: ~/.bashrc
+
+includes:
+  common:
+    taskfile: ./taskfiles/common.yaml
+    optional: false
+  ubuntu:
+    taskfile: ./taskfiles/ubuntu.yaml
+    optional: true
+  fedora:
+    taskfile: ./taskfiles/fedora.yaml
+    optional: true
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  # OS DETECTION
+  detect-os:
+    desc: Detect the current operating system
+    silent: true
+    cmds:
+      - |
+        if [ -f /etc/os-release ]; then
+          . /etc/os-release
+          echo $ID
+        else
+          echo "unknown"
+        fi
+
+  # ABSTRACTED APP INSTALLATION
+  # These tasks detect the OS and call the appropriate OS-specific task
+
+  install:spotify:
+    desc: Install Spotify (uses Snap on Ubuntu, Flatpak on Fedora)
+    cmds:
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install:spotify ;;
+          fedora) task fedora:install:spotify ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
+
+  install:signal:
+    desc: Install Signal (uses apt repo on Ubuntu, Flatpak on Fedora)
+    cmds:
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install:signal ;;
+          fedora) task fedora:install:signal ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
+
+  install:aws:
+    desc: Install AWS CLI v2 (uses Snap on Ubuntu, official installer on Fedora)
+    cmds:
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install:aws ;;
+          fedora) task fedora:install:aws ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
+
+  install:androidstudio:
+    desc: Install Android Studio (uses Snap on Ubuntu, Flatpak on Fedora)
+    cmds:
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install:androidstudio ;;
+          fedora) task fedora:install:androidstudio ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
+
+  install:code:
+    desc: Install VS Code (uses apt repo on Ubuntu, rpm repo on Fedora)
+    cmds:
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install:code ;;
+          fedora) task fedora:install:code ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
+
+  install:docker:
+    desc: Install Docker (uses apt repo on Ubuntu, dnf repo on Fedora)
+    cmds:
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install:docker ;;
+          fedora) task fedora:install:docker ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
+
+  # CONVENIENCE TASKS
+  prep:
+    desc: Prepare system for installation (auto-detects OS)
+    cmds:
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:prep ;;
+          fedora) task fedora:prep ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
+
+  install:
+    desc: Install everything (auto-detects OS)
+    cmds:
+      - |
+        OS=$(task detect-os 2>/dev/null)
+        case $OS in
+          ubuntu|debian) task ubuntu:install ;;
+          fedora) task fedora:install ;;
+          *) echo "Unsupported OS: $OS" && exit 1 ;;
+        esac
+
+  # RE-EXPORT COMMON TASKS AT ROOT LEVEL
+  install:kitty:
+    desc: Install Kitty terminal emulator
+    cmds:
+      - task: common:install:kitty
+
+  install:z:
+    desc: Install Z script for directory navigation
+    cmds:
+      - task: common:install:z
+
+  install:starship:
+    desc: Install Starship prompt
+    cmds:
+      - task: common:install:starship
+
+  install:lang:manager:
+    desc: Install asdf language version manager
+    cmds:
+      - task: common:install:lang:manager
+
+  install:lang:golang:
+    desc: Install Go via asdf
+    cmds:
+      - task: common:install:lang:golang
+
+  python:install:uv:
+    desc: Install uv for Python
+    cmds:
+      - task: common:python:install:uv
