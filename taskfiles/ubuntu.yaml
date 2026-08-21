@@ -20,7 +20,9 @@ tasks:
 
   prep:config:
     cmds:
-      - task: common:prep:alias
+      - task: :common:prep:alias
+        vars:
+          ALIAS_FLAVOUR: ubuntu
 
   # INSTALL
   install:
@@ -37,9 +39,9 @@ tasks:
       - sudo apt install -y htop eza bat ripgrep fd-find fzf
       - task: install:signal
       - task: install:spotify
-      - task: common:install:kitty
-      - task: common:install:z
-      - task: common:install:starship
+      - task: :common:install:kitty
+      - task: :common:install:z
+      - task: :common:install:starship
 
   install:dev:
     desc: Install developer related tools
@@ -47,11 +49,10 @@ tasks:
       - sudo apt install -y tmux
       - task: install:docker
       - task: install:direnv
-      - task: install:code
       - task: install:python
-      - task: common:install:lang:manager
+      - task: :common:install:lang:manager
       - task: install:lang:python
-      - task: common:install:lang:golang
+      - task: :common:install:lang:golang
       - task: install:lang:dart
       - task: install:lang:flutter
 
@@ -61,7 +62,7 @@ tasks:
     cmds:
       - sudo apt update
       - sudo apt install -y neovim
-      - task: common:install:vim:config
+      - task: :common:install:vim:config
 
   # DOCKER
   install:docker:
@@ -80,7 +81,7 @@ tasks:
       - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
       - sudo apt-get update
       - sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-      - task: common:install:docker:post
+      - task: :common:install:docker:post
 
   # DIRENV
   install:direnv:
@@ -93,20 +94,6 @@ tasks:
       - printf '\n# Direnv\n' >> {{.SHELL_CFG}}
       - printf 'eval "$(direnv hook {{.SHELL}})"\n' >> {{.SHELL_CFG}}
 
-  # VS CODE
-  install:code:
-    desc: Install VS Code on Ubuntu
-    status:
-      - code --version
-    cmds:
-      - sudo apt-get install -y wget gpg
-      - wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
-      - sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
-      - echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
-      - rm -f packages.microsoft.gpg
-      - sudo apt update
-      - sudo apt install -y code
-
   # PYTHON (system)
   install:python:
     desc: Install Python3 system packages on Ubuntu
@@ -114,7 +101,7 @@ tasks:
       - sudo apt update
       - sudo apt install -y python3 python3-pip python3-venv python3-dev
 
-  # PYTHON DEPS (for asdf)
+  # PYTHON DEPS (for mise)
   install:python:deps:
     desc: Install Python build dependencies on Ubuntu
     cmds:
@@ -122,10 +109,10 @@ tasks:
 
   # LANGUAGE TASKS (that call common with deps)
   install:lang:python:
-    desc: Install Python via asdf with Ubuntu dependencies
+    desc: Install Python via mise with Ubuntu dependencies
     cmds:
       - task: install:python:deps
-      - task: common:install:lang:python
+      - task: :common:install:lang:python
 
   install:lang:dart:
     desc: Install Dart programming language on Ubuntu
@@ -147,7 +134,7 @@ tasks:
     desc: Install Flutter SDK on Ubuntu
     cmds:
       - task: install:flutter:deps
-      - task: common:install:lang:flutter
+      - task: :common:install:lang:flutter
 
   # APPS (using Snap)
   install:signal:

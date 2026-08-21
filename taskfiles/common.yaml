@@ -7,16 +7,22 @@ vars:
 tasks:
   # PREP
   prep:alias:
-    desc: Add aliases to .bashrc
-    preconditions:
-      - test -d ~/.dotfiles || mkdir -p ~/.dotfiles
+    desc: Add common and OS-specific aliases to .bashrc
+    requires:
+      vars: [ALIAS_FLAVOUR]
     status:
-      - test -f ~/.dotfiles/.alias
-      - grep -q 'source ~/.dotfiles/.alias' {{.SHELL_CFG}}
+      - cmp -s alias/common ~/.dotfiles/.alias.common
+      - cmp -s alias/{{.ALIAS_FLAVOUR}} ~/.dotfiles/.alias.{{.ALIAS_FLAVOUR}}
+      - grep -qxF 'source ~/.dotfiles/.alias.common' {{.SHELL_CFG}}
+      - grep -qxF 'source ~/.dotfiles/.alias.{{.ALIAS_FLAVOUR}}' {{.SHELL_CFG}}
+      - "! grep -qxF 'source ~/.dotfiles/.alias' {{.SHELL_CFG}}"
     cmds:
-      - cp alias ~/.dotfiles/.alias
-      - printf '\n# Aliases\n' >> {{.SHELL_CFG}}
-      - printf 'source ~/.dotfiles/.alias\n' >> {{.SHELL_CFG}}
+      - mkdir -p ~/.dotfiles
+      - cp alias/common ~/.dotfiles/.alias.common
+      - cp alias/{{.ALIAS_FLAVOUR}} ~/.dotfiles/.alias.{{.ALIAS_FLAVOUR}}
+      - sed -i '\|source ~/.dotfiles/.alias$|d' {{.SHELL_CFG}}
+      - grep -qxF 'source ~/.dotfiles/.alias.common' {{.SHELL_CFG}} || printf '\n# Common aliases\nsource ~/.dotfiles/.alias.common\n' >> {{.SHELL_CFG}}
+      - grep -qxF 'source ~/.dotfiles/.alias.{{.ALIAS_FLAVOUR}}' {{.SHELL_CFG}} || printf '\n# {{.ALIAS_FLAVOUR}} aliases\nsource ~/.dotfiles/.alias.{{.ALIAS_FLAVOUR}}\n' >> {{.SHELL_CFG}}
 
   # TERMINAL
   install:kitty:
@@ -79,51 +85,41 @@ tasks:
 
   # LANGUAGE VERSION MANAGER
   install:lang:manager:
-    desc: Install asdf as a language version manager (https://asdf-vm.com/)
-    env:
-      ASDF_VERSION: v0.14.0
+    desc: Install mise as a language version manager (https://mise.jdx.dev/)
     status:
-      - asdf --version
+      - command -v mise >/dev/null || test -x ~/.local/bin/mise
+      - grep -q 'eval "$(mise activate {{.SHELL}})"' {{.SHELL_CFG}}
+      - >-
+        ! grep -qE '(asdf\.sh|asdf completion|ASDF_DATA_DIR|FLUTTER_ROOT=.*asdf)' {{.SHELL_CFG}}
     cmds:
-      - git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch $ASDF_VERSION
-      - printf '\n# Asdf\n' >> {{.SHELL_CFG}}
-      - printf '. "$HOME/.asdf/asdf.sh"\n' >> {{.SHELL_CFG}}
-      - printf '. "$HOME/.asdf/completions/asdf.bash"\n' >> {{.SHELL_CFG}}
+      - command -v mise >/dev/null || curl -fsSL https://mise.run | sh
+      - sed -i -E '\|(asdf\.sh|asdf completion|ASDF_DATA_DIR|FLUTTER_ROOT=.*asdf)|d' {{.SHELL_CFG}}
+      - grep -q 'eval "$(mise activate {{.SHELL}})"' {{.SHELL_CFG}} || printf '\n# Mise\neval "$(mise activate {{.SHELL}})"\n' >> {{.SHELL_CFG}}
 
   install:lang:python:
-    desc: Install Python via asdf
+    desc: Install Python via mise
     preconditions:
-      - asdf --version
+      - command -v mise >/dev/null || test -x ~/.local/bin/mise
     env:
       PYTHON_VERSION: latest
     cmds:
-      - task: "{{.OS}}:install:python:deps"
-      - asdf plugin add python
-      - asdf install python $PYTHON_VERSION
-      - asdf global python $PYTHON_VERSION
+      - MISE_BIN=$(command -v mise || printf '%s' "$HOME/.local/bin/mise"); "$MISE_BIN" use --global python@$PYTHON_VERSION
 
   install:lang:golang:
-    desc: Install Go via asdf
+    desc: Install Go via mise
     preconditions:
-      - asdf --version
+      - command -v mise >/dev/null || test -x ~/.local/bin/mise
     env:
       GO_VERSION: latest
     cmds:
-      - asdf plugin add golang
-      - asdf install golang $GO_VERSION
-      - asdf global golang $GO_VERSION
+      - MISE_BIN=$(command -v mise || printf '%s' "$HOME/.local/bin/mise"); "$MISE_BIN" use --global go@$GO_VERSION
 
   install:lang:flutter:
-    desc: Install Flutter SDK via asdf
+    desc: Install Flutter SDK via mise
     preconditions:
-      - asdf --version
+      - command -v mise >/dev/null || test -x ~/.local/bin/mise
     cmds:
-      - task: "{{.OS}}:install:flutter:deps"
-      - asdf plugin add flutter
-      - asdf install flutter latest
-      - asdf global flutter latest
-      - printf '\n# Flutter\n' >> {{.SHELL_CFG}}
-      - printf 'export FLUTTER_ROOT="$(asdf where flutter)"\n' >> {{.SHELL_CFG}}
+      - MISE_BIN=$(command -v mise || printf '%s' "$HOME/.local/bin/mise"); "$MISE_BIN" use --global flutter@latest
 
   # PYTHON TOOLS
   python:install:uv:

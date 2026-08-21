@@ -1,0 +1,146 @@
+version: 3
+
+vars:
+  SHELL: bash
+  SHELL_CFG: ~/.bashrc
+
+tasks:
+  prep:
+    desc: Prepare Omarchy for installation
+    cmds:
+      - task: prep:install
+      - task: prep:config
+
+  prep:install:
+    desc: Install base development packages on Omarchy
+    preconditions:
+      - sh: command -v omarchy
+        msg: This task requires Omarchy and its omarchy command
+    cmds:
+      - omarchy pkg add base-devel git wget curl zip unzip
+
+  prep:config:
+    cmds:
+      - task: :common:prep:alias
+        vars:
+          ALIAS_FLAVOUR: omarchy
+
+  install:
+    desc: Install everything for Omarchy
+    cmds:
+      - task: ensure:core
+      - task: install:useful
+      - task: install:dev
+
+  ensure:core:
+    desc: Ensure the expected Omarchy tools are installed without reconfiguring them
+    cmds:
+      - omarchy pkg add neovim starship zoxide mise htop docker docker-compose tmux git bat eza ripgrep fd fzf
+
+  install:useful:
+    desc: Install additional CLI utilities and desktop apps
+    cmds:
+      - omarchy pkg add wget
+      - task: install:signal
+      - task: install:spotify
+      - task: install:kitty
+
+  install:dev:
+    desc: Install additional developer tools
+    cmds:
+      - task: install:direnv
+      - task: install:python
+      - task: install:lang:python
+      - task: install:lang:golang
+      - task: install:lang:dart
+      - task: install:lang:flutter
+
+  install:kitty:
+    desc: Install Kitty with Omarchy integration and make it the default terminal
+    status:
+      - kitty --version
+      - test "$(omarchy default terminal)" = kitty
+    cmds:
+      - omarchy install terminal kitty
+
+  install:docker:
+    desc: Ensure Docker and Docker Compose are installed on Omarchy
+    cmds:
+      - omarchy pkg add docker docker-compose
+
+  install:direnv:
+    desc: Install direnv and configure its Bash hook
+    status:
+      - direnv --version
+      - grep -q 'eval "$(direnv hook {{.SHELL}})"' {{.SHELL_CFG}}
+    cmds:
+      - omarchy pkg add direnv
+      - printf '\n# Direnv\n' >> {{.SHELL_CFG}}
+      - printf 'eval "$(direnv hook {{.SHELL}})"\n' >> {{.SHELL_CFG}}
+
+  install:python:
+    desc: Install Python system packages on Omarchy
+    cmds:
+      - omarchy pkg add python python-pip
+
+  install:python:deps:
+    desc: Install Python build dependencies on Omarchy
+    cmds:
+      - omarchy pkg add base-devel openssl zlib xz tk libffi sqlite bzip2 readline ncurses
+
+  install:lang:python:
+    desc: Install Python via Omarchy's mise version manager
+    cmds:
+      - task: install:python:deps
+      - task: :common:install:lang:python
+
+  install:lang:golang:
+    desc: Install Go via Omarchy's mise version manager
+    cmds:
+      - task: :common:install:lang:golang
+
+  install:lang:dart:
+    desc: Install Dart on Omarchy
+    status:
+      - dart --version
+    cmds:
+      - omarchy pkg add dart
+
+  install:flutter:deps:
+    desc: Install Flutter dependencies on Omarchy
+    cmds:
+      - omarchy pkg add cmake clang ninja gtk3
+
+  install:lang:flutter:
+    desc: Install Flutter SDK via Omarchy's mise version manager
+    cmds:
+      - task: install:flutter:deps
+      - task: :common:install:lang:flutter
+
+  install:signal:
+    desc: Install Signal on Omarchy
+    status:
+      - omarchy pkg present signal-desktop
+    cmds:
+      - omarchy pkg add signal-desktop
+
+  install:spotify:
+    desc: Install Spotify on Omarchy
+    status:
+      - omarchy pkg present spotify
+    cmds:
+      - omarchy pkg add spotify
+
+  install:aws:
+    desc: Install AWS CLI v2 on Omarchy
+    status:
+      - aws --version
+    cmds:
+      - omarchy pkg add aws-cli-v2
+
+  install:androidstudio:
+    desc: Install Android Studio from the AUR on Omarchy
+    status:
+      - omarchy pkg present android-studio
+    cmds:
+      - omarchy pkg aur add android-studio

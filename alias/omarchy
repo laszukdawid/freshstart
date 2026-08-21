@@ -1,0 +1,4 @@
+# Keep Omarchy's feature-rich ls definition and add preferred shorthand.
+alias l='ls'
+alias task='go-task'
+alias vim='nvim'

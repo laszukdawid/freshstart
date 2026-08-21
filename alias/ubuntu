@@ -1,0 +1,17 @@
+alias ls='eza'
+alias ll='eza -al'
+alias la='eza -a'
+alias l='eza -l'
+
+alias grep='grep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
+
+alias ..='cd ..'
+alias ...='cd ../..'
+
+alias python='python3'
+alias pip='pip3'
+alias py='python -m pdb -c c'
+
+alias vim='nvim'

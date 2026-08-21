@@ -21,7 +21,9 @@ tasks:
 
   prep:config:
     cmds:
-      - task: common:prep:alias
+      - task: :common:prep:alias
+        vars:
+          ALIAS_FLAVOUR: fedora
 
   # INSTALL
   install:
@@ -37,9 +39,9 @@ tasks:
       - sudo dnf install -y htop eza bat ripgrep fd-find fzf
       - task: install:signal
       - task: install:spotify
-      - task: common:install:kitty
-      - task: common:install:z
-      - task: common:install:starship
+      - task: :common:install:kitty
+      - task: :common:install:z
+      - task: :common:install:starship
 
   install:dev:
     desc: Install developer related tools
@@ -47,11 +49,10 @@ tasks:
       - sudo dnf install -y tmux
       - task: install:docker
       - task: install:direnv
-      - task: install:code
       - task: install:python
-      - task: common:install:lang:manager
+      - task: :common:install:lang:manager
       - task: install:lang:python
-      - task: common:install:lang:golang
+      - task: :common:install:lang:golang
       - task: install:lang:dart
       - task: install:lang:flutter
 
@@ -60,7 +61,7 @@ tasks:
     desc: Install Neovim on Fedora
     cmds:
       - sudo dnf install -y neovim
-      - task: common:install:vim:config
+      - task: :common:install:vim:config
 
   # DOCKER
   install:docker:
@@ -74,7 +75,7 @@ tasks:
       - sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
       - sudo systemctl start docker
       - sudo systemctl enable docker
-      - task: common:install:docker:post
+      - task: :common:install:docker:post
 
   # DIRENV
   install:direnv:
@@ -87,32 +88,13 @@ tasks:
       - printf '\n# Direnv\n' >> {{.SHELL_CFG}}
       - printf 'eval "$(direnv hook {{.SHELL}})"\n' >> {{.SHELL_CFG}}
 
-  # VS CODE
-  install:code:
-    desc: Install VS Code on Fedora via Microsoft RPM repo
-    status:
-      - code --version
-    cmds:
-      - sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
-      - |
-        cat <<EOF | sudo tee /etc/yum.repos.d/vscode.repo
-        [code]
-        name=Visual Studio Code
-        baseurl=https://packages.microsoft.com/yumrepos/vscode
-        enabled=1
-        gpgcheck=1
-        gpgkey=https://packages.microsoft.com/keys/microsoft.asc
-        EOF
-      - sudo dnf check-update || true
-      - sudo dnf install -y code
-
   # PYTHON (system)
   install:python:
     desc: Install Python3 system packages on Fedora
     cmds:
       - sudo dnf install -y python3 python3-pip python3-devel
 
-  # PYTHON DEPS (for asdf)
+  # PYTHON DEPS (for mise)
   install:python:deps:
     desc: Install Python build dependencies on Fedora
     cmds:
@@ -120,10 +102,10 @@ tasks:
 
   # LANGUAGE TASKS
   install:lang:python:
-    desc: Install Python via asdf with Fedora dependencies
+    desc: Install Python via mise with Fedora dependencies
     cmds:
       - task: install:python:deps
-      - task: common:install:lang:python
+      - task: :common:install:lang:python
 
   install:lang:dart:
     desc: Install Dart programming language on Fedora
@@ -145,7 +127,7 @@ tasks:
     desc: Install Flutter SDK on Fedora
     cmds:
       - task: install:flutter:deps
-      - task: common:install:lang:flutter
+      - task: :common:install:lang:flutter
 
   # FLATPAK SETUP
   setup:flatpak:

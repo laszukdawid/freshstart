@@ -81,17 +81,6 @@ tasks:
           *) echo "Unsupported OS: $OS" && exit 1 ;;
         esac
 
-  install:code:
-    desc: Install VS Code (uses apt repo on Ubuntu, rpm repo on Fedora)
-    cmds:
-      - |
-        OS=$(task detect-os 2>/dev/null)
-        case $OS in
-          ubuntu|debian) task ubuntu:install:code ;;
-          fedora) task fedora:install:code ;;
-          *) echo "Unsupported OS: $OS" && exit 1 ;;
-        esac
-
   install:docker:
     desc: Install Docker (uses apt repo on Ubuntu, dnf repo on Fedora)
     cmds:
@@ -143,12 +132,12 @@ tasks:
       - task: common:install:starship
 
   install:lang:manager:
-    desc: Install asdf language version manager
+    desc: Install mise language version manager
     cmds:
       - task: common:install:lang:manager
 
   install:lang:golang:
-    desc: Install Go via asdf
+    desc: Install Go via mise
     cmds:
       - task: common:install:lang:golang
 

@@ -20,9 +20,11 @@ tasks:
     desc: Add aliases to .bashrc
     cmds:
       - mkdir -p ~/.dotfiles
-      - cp alias.macos ~/.dotfiles/.alias
-      - printf '\n# Aliases\n' >> {{.SHELL_CFG}}
-      - printf 'source ~/.dotfiles/.alias\n' >> {{.SHELL_CFG}}
+      - cp alias/common ~/.dotfiles/.alias.common
+      - cp alias/macos ~/.dotfiles/.alias.macos
+      - sed -i '' '\|source ~/.dotfiles/.alias$|d' {{.SHELL_CFG}}
+      - grep -qxF 'source ~/.dotfiles/.alias.common' {{.SHELL_CFG}} || printf '\n# Common aliases\nsource ~/.dotfiles/.alias.common\n' >> {{.SHELL_CFG}}
+      - grep -qxF 'source ~/.dotfiles/.alias.macos' {{.SHELL_CFG}} || printf '\n# macOS aliases\nsource ~/.dotfiles/.alias.macos\n' >> {{.SHELL_CFG}}
 
   # INSTALL
   macos:install:
@@ -131,11 +133,13 @@ tasks:
       - printf 'eval "$(starship init {{.SHELL}})"\n' >> {{.SHELL_CFG}}
 
   install:lang:manager:
-    desc: Install [asdf](https://asdf-vm.com/) as a lanague version manager
+    desc: Install mise as a language version manager
     status:
-      - asdf --version
+      - mise --version
+      - grep -q 'eval "$(mise activate {{.SHELL}})"' {{.SHELL_CFG}}
+      - >-
+        ! grep -qE '(asdf\.sh|asdf completion|ASDF_DATA_DIR|FLUTTER_ROOT=.*asdf)' {{.SHELL_CFG}}
     cmds:
-      - brew install asdf
-      - printf '\n# Asdf\n' >> {{.SHELL_CFG}}
-      - printf 'export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"\n' >> {{.SHELL_CFG}}
-      - printf '. <(asdf completion bash)\n' >> {{.SHELL_CFG}}
+      - brew install mise
+      - sed -i '' -E '\|(asdf\.sh|asdf completion|ASDF_DATA_DIR|FLUTTER_ROOT=.*asdf)|d' {{.SHELL_CFG}}
+      - grep -q 'eval "$(mise activate {{.SHELL}})"' {{.SHELL_CFG}} || printf '\n# Mise\neval "$(mise activate {{.SHELL}})"\n' >> {{.SHELL_CFG}}

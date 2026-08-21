@@ -14,6 +14,9 @@ includes:
   fedora:
     taskfile: ./taskfiles/fedora.yaml
     optional: true
+  omarchy:
+    taskfile: ./taskfiles/omarchy.yaml
+    optional: true
 
 tasks:
   default:
@@ -38,68 +41,62 @@ tasks:
   # These tasks detect the OS and call the appropriate OS-specific task
 
   install:spotify:
-    desc: Install Spotify (uses Snap on Ubuntu, Flatpak on Fedora)
+    desc: Install Spotify for the current OS
     cmds:
       - |
         OS=$(task detect-os 2>/dev/null)
         case $OS in
           ubuntu|debian) task ubuntu:install:spotify ;;
           fedora) task fedora:install:spotify ;;
+          omarchy) task omarchy:install:spotify ;;
           *) echo "Unsupported OS: $OS" && exit 1 ;;
         esac
 
   install:signal:
-    desc: Install Signal (uses apt repo on Ubuntu, Flatpak on Fedora)
+    desc: Install Signal for the current OS
     cmds:
       - |
         OS=$(task detect-os 2>/dev/null)
         case $OS in
           ubuntu|debian) task ubuntu:install:signal ;;
           fedora) task fedora:install:signal ;;
+          omarchy) task omarchy:install:signal ;;
           *) echo "Unsupported OS: $OS" && exit 1 ;;
         esac
 
   install:aws:
-    desc: Install AWS CLI v2 (uses Snap on Ubuntu, official installer on Fedora)
+    desc: Install AWS CLI v2 for the current OS
     cmds:
       - |
         OS=$(task detect-os 2>/dev/null)
         case $OS in
           ubuntu|debian) task ubuntu:install:aws ;;
           fedora) task fedora:install:aws ;;
+          omarchy) task omarchy:install:aws ;;
           *) echo "Unsupported OS: $OS" && exit 1 ;;
         esac
 
   install:androidstudio:
-    desc: Install Android Studio (uses Snap on Ubuntu, Flatpak on Fedora)
+    desc: Install Android Studio for the current OS
     cmds:
       - |
         OS=$(task detect-os 2>/dev/null)
         case $OS in
           ubuntu|debian) task ubuntu:install:androidstudio ;;
           fedora) task fedora:install:androidstudio ;;
-          *) echo "Unsupported OS: $OS" && exit 1 ;;
-        esac
-
-  install:code:
-    desc: Install VS Code (uses apt repo on Ubuntu, rpm repo on Fedora)
-    cmds:
-      - |
-        OS=$(task detect-os 2>/dev/null)
-        case $OS in
-          ubuntu|debian) task ubuntu:install:code ;;
-          fedora) task fedora:install:code ;;
+          omarchy) task omarchy:install:androidstudio ;;
           *) echo "Unsupported OS: $OS" && exit 1 ;;
         esac
 
   install:docker:
-    desc: Install Docker (uses apt repo on Ubuntu, dnf repo on Fedora)
+    desc: Install Docker for the current OS
     cmds:
       - |
         OS=$(task detect-os 2>/dev/null)
         case $OS in
           ubuntu|debian) task ubuntu:install:docker ;;
           fedora) task fedora:install:docker ;;
+          omarchy) task omarchy:install:docker ;;
           *) echo "Unsupported OS: $OS" && exit 1 ;;
         esac
 
@@ -112,6 +109,7 @@ tasks:
         case $OS in
           ubuntu|debian) task ubuntu:prep ;;
           fedora) task fedora:prep ;;
+          omarchy) task omarchy:prep ;;
           *) echo "Unsupported OS: $OS" && exit 1 ;;
         esac
 
@@ -123,6 +121,7 @@ tasks:
         case $OS in
           ubuntu|debian) task ubuntu:install ;;
           fedora) task fedora:install ;;
+          omarchy) task omarchy:install ;;
           *) echo "Unsupported OS: $OS" && exit 1 ;;
         esac
 
@@ -143,12 +142,12 @@ tasks:
       - task: common:install:starship
 
   install:lang:manager:
-    desc: Install asdf language version manager
+    desc: Install mise language version manager
     cmds:
       - task: common:install:lang:manager
 
   install:lang:golang:
-    desc: Install Go via asdf
+    desc: Install Go via mise
     cmds:
       - task: common:install:lang:golang
 
